@@ -9,6 +9,7 @@ import cv2
 import time
 import threading
 import asyncio
+from beepy import beep
 from server import PDFServer
 from vectors.redis_handler import RedisManager
 
@@ -115,14 +116,17 @@ class VideoCaptureHandler:
         elif self.pinkie_tip_history[0].x < pinkie_tip.x:
             return "Right"
         return None
+    
 
-    def do_save_webpage(self):
+    async def do_save_webpage(self):
         """Functionality to save the webpage."""
         if self.frame_number - self.last_save_frame < self.save_cooldown:
             return
         print("Saving webpage")
+        beep(5)
+        self.pdf_server.event.set()
+
         self.last_save_frame = self.frame_number
-        self.pdf_server.pause_main_loop.set()
 
 
     async def process_capture_gesture(self, gesture):
@@ -130,7 +134,7 @@ class VideoCaptureHandler:
             self.last_open_palm_frame = self.frame_number
         elif gesture == CLOSED_FIST_GESTURE:
             if self.frame_number - self.last_open_palm_frame < self.capture_frame_threshold:
-                self.do_save_webpage()
+                await self.do_save_webpage()
             self.last_open_palm_frame = -1
 
     def start_query(self):
@@ -158,6 +162,7 @@ class VideoCaptureHandler:
         audio_thread = threading.Thread(target=alerts.play_success())
         audio_thread.start()
         query_text = self.voice_recorder.stop_recording()
+        print("Query: " + query_text)
         response = self.make_query(query_text)
         self.voice_player.read_out_text(response)
 
@@ -181,9 +186,10 @@ class VideoCaptureHandler:
     
     async def main(self):
         task1 = asyncio.create_task(self.run())
-        task2 = asyncio.create_task(self.pdf_server.main())
+        server_thread = threading.Thread(target=self.pdf_server.start_websocket_server, daemon=True)
+        server_thread.start()
 
-        await asyncio.gather(task1, task2)
+        await task1
 
     async def run(self):
         """Main loop for video capture and processing."""
