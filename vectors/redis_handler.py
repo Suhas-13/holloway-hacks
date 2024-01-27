@@ -7,9 +7,14 @@ from redis.commands.search.indexDefinition import IndexDefinition, IndexType
 from redis.commands.search.query import Query
 from dotenv import load_dotenv
 import os
+from openai import OpenAI
+
 
 load_dotenv()
 INDEX_NAME = "dev"
+openai_client = OpenAI(
+    api_key=os.getenv('OPENAI_KEY'),
+)
 
 
 def get_embeddings(model, data):
@@ -68,20 +73,55 @@ def delete_index(client, index_name, delete_documents=False):
     except Exception as e:
         print(f"Error deleting index: {e}")
 
+
 def get_data_json(filename, input):
     return [
         {"id": filename, "text": input},
     ]
 
 
-def main(upload=False, search=False):
+# def get_answer_from_gpt(question, context):
+#     response = openai.Completion.create(
+#       engine="davinci",
+#       prompt=f"Context: {context}\n\nQuestion: {question}\nAnswer:", 
+#       max_tokens=50
+#     )
+
+#     return response.choices[0].text.strip()
+
+
+# might have a tiny deadlock risk but it's calm
+def vector_search_and_gpt(query, openai_client, redis_client, embedder, index_name):
+    search_results = vector_search(redis_client, embedder, index_name, query)
+    context = search_results[0]["Text"] if search_results else ""
+
+    print("context:", context)
+
+    response = openai_client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "Answer the question based on the context below, and if the question can't be answered based on the context, say \"I don't know\"\n\n"},
+            {"role": "user", "content": f"Context: {context}\n\n---\n\nQuestion: {query}\nAnswer:"}
+        ],
+        temperature=0,
+        max_tokens=80,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+        # stop=stop_sequence,
+    )
+
+    return response.choices[0].message.content.strip()
+
+
+def main(upload=False, search=False, ask=False):
     # Sample text data
     # data = [
     #     {"id": "doc1", "text": "Test123"},
     #     # {"id": "doc2", "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit"},
     # ]
 
-    data = get_data_json("doc1", "Test123")
+    data = get_data_json("doc2", "Alice is friends with Bob.")
 
     client = redis.Redis(
         host='redis-11987.c322.us-east-1-2.ec2.cloud.redislabs.com',
@@ -106,6 +146,12 @@ def main(upload=False, search=False):
     if search:
         print(vector_search(client, embedder, INDEX_NAME, "test"))
 
+    if ask:
+        query = "Who is Alice friends with?"
+
+        gpt_answer = vector_search_and_gpt(query, openai_client, client, embedder, INDEX_NAME)
+        print(gpt_answer)
+
 
 if __name__ == "__main__":
-    main(upload=False, search=False)
+    main(upload=True, search=False, ask=False)
