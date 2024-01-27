@@ -114,26 +114,29 @@ def vector_search_and_gpt(query, openai_client, redis_client, embedder, index_na
     return response.choices[0].message.content.strip()
 
 
-def split_text_by_paragraphs(text, min_length=200, max_length=1000):
+def split_and_format_text(filename, text, min_length=400, max_length=1000):
     paragraphs = text.split('\n\n')
-    segments = []
-
+    formatted_data = []
     current_segment = ""
+    segment_count = 1
+
     for paragraph in paragraphs:
         if len(current_segment) + len(paragraph) <= max_length:
             current_segment += paragraph + "\n\n"
         else:
             if len(current_segment) >= min_length:
-                segments.append(current_segment.strip())
+                formatted_data.append({"id": f"{filename}_part{segment_count}", "text": current_segment.strip()})
                 current_segment = paragraph + "\n\n"
+                segment_count += 1
             else:
                 current_segment += paragraph + "\n\n"
-    
+
     # Adding the last segment if it's not empty
     if current_segment.strip():
-        segments.append(current_segment.strip())
+        formatted_data.append({"id": f"{filename}_part{segment_count}", "text": current_segment.strip()})
 
-    return segments
+    return formatted_data
+
 
 
 def main(upload=False, search=False, ask=False):
@@ -143,7 +146,8 @@ def main(upload=False, search=False, ask=False):
     #     # {"id": "doc2", "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit"},
     # ]
 
-    data = get_data_json("doc3", "Alice is friends with Bob.")
+    # data = get_data_json("doc3", "Alice is friends with Bob.")
+    data = split_and_format_text("test")
 
     client = redis.Redis(
         host='redis-11987.c322.us-east-1-2.ec2.cloud.redislabs.com',
