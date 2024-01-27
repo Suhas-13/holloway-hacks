@@ -13,6 +13,7 @@ webSocket.onmessage = (event) => {
 
         let id = tabs[0].id;
         let url = tabs[0].url;
+        let title = tabs[0].title;
 
         if (url.startsWith("chrome://")) {
             webSocket.send("");
@@ -30,7 +31,7 @@ webSocket.onmessage = (event) => {
                     fetch(url)
                         .then((response) => response.text())
                         .then((data) => {
-                            webSocket.send("pdf:" + data);
+                            webSocket.send("pdf:" + title + ":" + data);
                         });
                 } else {
                     webSocket.send("txt:" + results[0]);
