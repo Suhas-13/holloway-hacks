@@ -158,10 +158,10 @@ class RedisManager:
 
 def main():
     manager = RedisManager()
-    upload = "there are 4 words"
-    # manager.upload_string("rand", upload)
+    upload = "there are 5 words"
+    manager.upload_string("rand", upload)
 
-    manager.ask_gpt("how many words are there?")
+    manager.ask_gpt("what is bob?")
 
 
 if __name__ == "__main__":

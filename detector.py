@@ -10,6 +10,7 @@ import time
 import threading
 import asyncio
 from server import PDFServer
+from vectors.redis_handler import RedisManager
 
 class GestureRecogniser:
     def __init__(self):
@@ -90,7 +91,8 @@ class VideoCaptureHandler:
         self.no_recording_gesture_detected_counter = 0
         self.voice_recorder = VoiceRecorder()
         self.voice_player = VoicePlayer()
-        self.pdf_server = PDFServer()
+        self.redis_manager = RedisManager()
+        self.pdf_server = PDFServer(self.redis_manager)
         self.last_save_frame = -1
         self.save_cooldown = 50
 
@@ -143,6 +145,9 @@ class VideoCaptureHandler:
         
 
         
+    def make_query(self, query_text):
+        manager = RedisManager()
+        return manager.ask_gpt(query_text)
         
     def stop_query(self):
         """Functionality to stop querying the brain."""
@@ -153,8 +158,8 @@ class VideoCaptureHandler:
         audio_thread = threading.Thread(target=alerts.play_success())
         audio_thread.start()
         query_text = self.voice_recorder.stop_recording()
-        print(query_text)
-        self.voice_player.read_out_text(query_text)
+        response = self.make_query(query_text)
+        self.voice_player.read_out_text(response)
 
 
     def do_flip_flashcard(self):
