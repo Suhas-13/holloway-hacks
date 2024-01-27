@@ -8,6 +8,8 @@ from mac_alerts import alerts
 import cv2
 import time
 import threading
+import asyncio
+from server import PDFServer
 
 class GestureRecogniser:
     def __init__(self):
@@ -88,6 +90,7 @@ class VideoCaptureHandler:
         self.no_recording_gesture_detected_counter = 0
         self.voice_recorder = VoiceRecorder()
         self.voice_player = VoicePlayer()
+        self.pdf_server = PDFServer()
 
     def track_pinkie_tip(self, finger_tip_landmarks):
         """Track the pinkie tip and return the direction."""
@@ -112,14 +115,16 @@ class VideoCaptureHandler:
     def do_save_webpage(self):
         """Functionality to save the webpage."""
         print("Saving webpage")
+        self.pdf_server.pause_main_loop.set()
+
 
     def process_capture_gesture(self, gesture):
         if gesture == OPEN_PALM_GESTURE:
             self.last_open_palm_frame = self.frame_number
         elif gesture == CLOSED_FIST_GESTURE:
             if self.frame_number - self.last_open_palm_frame < self.capture_frame_threshold:
-                self.do_save_webpage()
                 self.last_open_palm_frame = -1
+                self.do_save_webpage()
 
     def start_query(self):
         """Functionality to query the personal brain."""
@@ -164,8 +169,15 @@ class VideoCaptureHandler:
         if gesture == FLIP_GESTURE:
             self.do_flip_flashcard()
     
-    def run(self):
+    async def main(self):
+        task1 = asyncio.create_task(self.run())
+        task2 = asyncio.create_task(self.pdf_server.main())
+
+        await asyncio.gather(task1, task2)
+
+    async def run(self):
         """Main loop for video capture and processing."""
+
         while self.cap.isOpened():
             success, image = self.cap.read()
             if not success:
@@ -196,8 +208,10 @@ class VideoCaptureHandler:
 
             self.frame_number += 1
 
+            await asyncio.sleep(0)
+
 
 
 if __name__ == "__main__":
     video_capture_handler = VideoCaptureHandler()
-    video_capture_handler.run()
+    asyncio.run(video_capture_handler.main())
