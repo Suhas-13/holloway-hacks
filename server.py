@@ -6,15 +6,17 @@ import requests as re
 from os import remove
 from beepy import beep
 import random
+import base64
 import string
 import os
 
 class PDFServer:
-    def __init__(self):
+    def __init__(self, redis_manager):
         self.pause_main_loop = asyncio.Event()
         self.data = bytearray()
         self.is_receiving = False
         self.file_name = ""
+        self.redis_manager = redis_manager
 
     def extract_text_from_pdf(self):
         reader = PyPDF2.PdfReader("pdf.pdf")
@@ -69,7 +71,9 @@ class PDFServer:
                     text = self.extract_text_from_pdf()
                     self.send_text_to_backend(self.file_name, text)
                     self.data.clear()
-                    os.rename("pdf.pdf", "pdfs/" + self.generate_alpha_numeric_string(16) + ".pdf")
+                    new_file_name = base64.b64encode(self.file_name.encode("utf-8")).decode("utf-8")
+                    os.rename("pdf.pdf", "pdfs/" + new_file_name + ".pdf")
+                    
                     continue
 
                 if message.startswith("text:end"):
