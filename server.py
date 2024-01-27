@@ -72,7 +72,6 @@ class PDFServer:
                 if self.is_receiving:
                     self.data.extend(message.encode("utf-8"))
                     continue
-            await asyncio.sleep(0)
 
     async def main(self):
         print("Starting server...")
