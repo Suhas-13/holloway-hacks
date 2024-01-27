@@ -30,10 +30,10 @@ webSocket.onmessage = (event) => {
                     fetch(url)
                         .then((response) => response.text())
                         .then((data) => {
-                            webSocket.send(data);
+                            webSocket.send("pdf:" + data);
                         });
                 } else {
-                    webSocket.send(results[0]);
+                    webSocket.send("txt:" + results[0]);
                 }
             },
         );
