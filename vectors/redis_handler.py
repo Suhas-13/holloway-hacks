@@ -83,7 +83,7 @@ def get_data_json(filename, input):
 # def get_answer_from_gpt(question, context):
 #     response = openai.Completion.create(
 #       engine="davinci",
-#       prompt=f"Context: {context}\n\nQuestion: {question}\nAnswer:", 
+#       prompt=f"Context: {context}\n\nQuestion: {question}\nAnswer:",
 #       max_tokens=50
 #     )
 
@@ -114,6 +114,28 @@ def vector_search_and_gpt(query, openai_client, redis_client, embedder, index_na
     return response.choices[0].message.content.strip()
 
 
+def split_text_by_paragraphs(text, min_length=200, max_length=1000):
+    paragraphs = text.split('\n\n')
+    segments = []
+
+    current_segment = ""
+    for paragraph in paragraphs:
+        if len(current_segment) + len(paragraph) <= max_length:
+            current_segment += paragraph + "\n\n"
+        else:
+            if len(current_segment) >= min_length:
+                segments.append(current_segment.strip())
+                current_segment = paragraph + "\n\n"
+            else:
+                current_segment += paragraph + "\n\n"
+    
+    # Adding the last segment if it's not empty
+    if current_segment.strip():
+        segments.append(current_segment.strip())
+
+    return segments
+
+
 def main(upload=False, search=False, ask=False):
     # Sample text data
     # data = [
@@ -121,7 +143,7 @@ def main(upload=False, search=False, ask=False):
     #     # {"id": "doc2", "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit"},
     # ]
 
-    data = get_data_json("doc2", "Alice is friends with Bob.")
+    data = get_data_json("doc3", "Alice is friends with Bob.")
 
     client = redis.Redis(
         host='redis-11987.c322.us-east-1-2.ec2.cloud.redislabs.com',
@@ -129,10 +151,10 @@ def main(upload=False, search=False, ask=False):
         password=os.getenv('REDIS_PASSWORD'),
         decode_responses=True
         )
-    
+
     if client:
         print("connected")
-    
+
     embedder = SentenceTransformer("msmarco-distilbert-base-v4")
 
     embeddings = get_embeddings(embedder, data)
@@ -154,4 +176,4 @@ def main(upload=False, search=False, ask=False):
 
 
 if __name__ == "__main__":
-    main(upload=True, search=False, ask=False)
+    main(upload=False, search=False, ask=False)
