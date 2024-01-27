@@ -14,11 +14,6 @@ load_dotenv()
 INDEX_NAME = "dev"
 
 
-def get_embeddings(model, data):
-    embeddings = model.encode([item['text'] for item in data]).astype(np.float32)   # FIXME: only json
-    return embeddings
-
-
 def upload_data(client, data, embeddings):
     pipeline = client.pipeline()
     for item, embedding in zip(data, embeddings):
@@ -42,27 +37,6 @@ def create_index(client, index_name, embeddings_dimension):
     client.ft(index_name).create_index(fields=schema, definition=definition)
 
 
-def vector_search(client, model, index_name, input_string):
-
-    query_vector = model.encode([input_string]).astype(np.float32)[0]
-
-    query = (
-        Query("(*)=>[KNN 5 @embedding $vec AS score]")
-        .sort_by("score")
-        .return_fields("score", "text")
-        .dialect(2)
-    )
-
-    params = {"vec": query_vector.tobytes()}
-    results = client.ft(index_name).search(query, query_params=params).docs
-
-    search_results = []
-    for doc in results:
-        search_results.append({"Score": doc.score, "Text": doc.text})
-
-    return search_results
-
-
 def delete_index(client, index_name, delete_documents=False):
     try:
         client.ft(index_name).dropindex(delete_documents=delete_documents)
@@ -75,31 +49,6 @@ def get_data_json(filename, input):
     return [
         {"id": filename, "text": input},
     ]
-
-
-# might have a tiny deadlock risk but it's calm
-def vector_search_and_gpt(query, openai_client, redis_client, embedder, index_name):
-    search_results = vector_search(redis_client, embedder, index_name, query)
-    context = search_results[0]["Text"] if search_results else ""
-
-    print("context:", context)
-
-    response = openai_client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "Answer the question based on the context below, and if the question can't be answered based on the context, say \"I don't know\"\n\n"},
-            {"role": "user", "content": f"Context: {context}\n\n---\n\nQuestion: {query}\nAnswer:"}
-        ],
-        temperature=0,
-        max_tokens=80,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
-        # stop=stop_sequence,
-    )
-
-    return response.choices[0].message.content.strip()
-
 
 def split_and_format_text(filename, text, min_length=400, max_length=1000):
     paragraphs = text.split('\n\n')
@@ -139,29 +88,82 @@ class RedisManager:
         )
         
         self.embedder = SentenceTransformer("msmarco-distilbert-base-v4")
+
+
+    def get_embedding(self, text, model="text-embedding-3-small"):
+        text = text.replace("\n", " ")
+        return self.openai_client.embeddings.create(input = [text], model=model).data[0].embedding
     
+
     def upload_string(self, filename, data):
         data = split_and_format_text(filename, data)
-        embeddings = get_embeddings(self.embedder, data)
+        embeddings = [np.array(self.get_embedding(item["text"]), dtype=np.float32) for item in data]
+
         upload_data(self.client, data, embeddings)
         delete_index(self.client, INDEX_NAME)
         create_index(self.client, INDEX_NAME, len(embeddings[0]))
 
+
     def search_string(self, query):
-        results = vector_search(self.client, self.embedder, INDEX_NAME, query)
-        print(results)
+        results = self.vector_search(self.client, INDEX_NAME, query)
+        return results
+
 
     def ask_gpt(self, query):
-        gpt_answer = vector_search_and_gpt(query, self.openai_client, self.client, self.embedder, INDEX_NAME)
-        print(gpt_answer)
-        
+        gpt_answer = self.vector_search_and_gpt(query, self.client, self.openai_client,  INDEX_NAME)
+        return gpt_answer
+
+    
+    def vector_search(self, client, index_name, input_string):
+        query_vector = np.array(self.get_embedding(input_string), dtype=np.float32)
+
+        query = (
+            Query("(*)=>[KNN 5 @embedding $vec AS score]")
+            .sort_by("score")
+            .return_fields("score", "text")
+            .dialect(2)
+        )
+
+        params = {"vec": query_vector.tobytes()}
+        results = client.ft(index_name).search(query, query_params=params).docs
+
+        search_results = []
+        for doc in results:
+            search_results.append({"Score": doc.score, "Text": doc.text})
+
+        return search_results
+    
+
+    def vector_search_and_gpt(self, query, redis_client, openai_client, index_name, context_count=1):
+        search_results = self.vector_search(redis_client, index_name, query)
+        contexts = [result["Text"] for result in search_results[:context_count]] if search_results else [""]
+        context = "\n\n".join(contexts)
+
+        print("context:", context)
+
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Answer the question based on the context below, and if the question can't be answered based on the context, say \"I don't know\"\n\n"},
+                {"role": "user", "content": f"Context: {context}\n\n---\n\nQuestion: {query}\nAnswer:"}
+            ],
+            temperature=0,
+            max_tokens=80,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0,
+            # stop=stop_sequence,
+        )
+
+        return response.choices[0].message.content.strip()
+            
 
 def main():
     manager = RedisManager()
-    upload = "there are 4 words"
-    # manager.upload_string("rand", upload)
 
-    manager.ask_gpt("how many words are there?")
+    manager.upload_string("1123554", "Alice ligma balls")
+
+    print(manager.ask_gpt("Where does bbc's revenue come from?"))
 
 
 if __name__ == "__main__":
