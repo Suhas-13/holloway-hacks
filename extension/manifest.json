@@ -1,0 +1,10 @@
+{
+  "manifest_version": 2,
+  "name": "knowledge",
+  "description": "knowledge",
+  "version": "1.0",
+  "permissions": ["tabs", "activeTab", "http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  }
+}
