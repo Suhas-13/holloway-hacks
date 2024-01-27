@@ -7,7 +7,7 @@ from time import sleep
 
 async def handler(websocket):
     while True:
-        await websocket.send("Hello!")
+        await websocket.send("give data pls")
         message = await websocket.recv()
         print(message)
         sleep(10)
