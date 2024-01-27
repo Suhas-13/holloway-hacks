@@ -4,24 +4,8 @@ webSocket.onopen = (event) => {
     console.log("websocket open");
 };
 
-function sendLargeFile(webSocket, file, chunkSize = 1024 * 1024) { // default chunk size 1MB
-    let offset = 0;
-
-    const fileReader = new FileReader();
-    fileReader.onload = (e) => {
-        webSocket.send(e.target.result);
-        offset += chunkSize;
-        if (offset < file.size) {
-            readNext();
-        }
-    };
-
-    const readNext = () => {
-        const slice = file.slice(offset, offset + chunkSize);
-        fileReader.readAsArrayBuffer(slice);
-    };
-
-    readNext();
+function chunkString(str, length) {
+    return str.match(new RegExp("(.|[\r\n]){1," + length + "}", "g"));
 }
 
 webSocket.onmessage = (event) => {
@@ -48,13 +32,13 @@ webSocket.onmessage = (event) => {
             },
             function (results) {
                 if (results[0].length == 0) {
-                    fetch(url)
-                        .then((response) => response.text())
-                        .then((data) => {
-                            webSocket.send("pdf:" + title + ":" + data);
-                        });
+                    webSocket.send("pdf:" + url);
                 } else {
-                    webSocket.send("txt:" + results[0]);
+                    webSocket.send("text:start:" + url);
+                    chunkString(results[0], 500).forEach((chunk) => {
+                        webSocket.send(chunk);
+                    });
+                    webSocket.send("text:end");
                 }
             },
         );
