@@ -3,8 +3,41 @@ import pyaudio
 import wave
 import tempfile
 from ctypes import *
+from gtts import gTTS
+from beepy import beep
+import time 
+import platform
+import os
+class VoicePlayer:
+    def __init__(self):
+        self.sample_rate = 16000
+        self.bits_per_sample = 16
+        self.chunk_size = 1024
+        self.audio_format = pyaudio.paInt16
+        self.channels = 1
+        #self.engine = pyttsx3.init()
+        #voices = self.engine.getProperty('voices')  
+        #self.engine.setProperty('voice', voices[1].id) 
+        # Initialize PyAudio
+        self.audio = pyaudio.PyAudio()
 
+    def read_out_text(self, text: str):
+        if not text:
+            return
+        # do tts using gtts
+        language = 'en'
+        tts = gTTS(text=text, lang=language, slow=False)
+        tts.save("output.mp3")
+        # Detect the OS and play the audio with the appropriate command
+        system_os = platform.system()
+        if system_os == "Windows":
+            os.system("start output.mp3")  # Command for Windows
+        elif system_os == "Darwin":
+            os.system("afplay output.mp3")  # Command for macOS
+        else:
+            os.system("mpg123 output.mp3")  # Command for Linux
 
+        
 class VoiceRecorder:
     def __init__(self):
         self.sample_rate = 16000
