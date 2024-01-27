@@ -5,7 +5,9 @@ from time import sleep
 import requests as re
 from os import remove
 from beepy import beep
-
+import random
+import string
+import os
 
 class PDFServer:
     def __init__(self):
@@ -26,6 +28,8 @@ class PDFServer:
         print(text)
         print("Sending text to backend...")
 
+    def generate_alpha_numeric_string(self, length):
+        return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
     async def handler(self, websocket):
         while True:
             if not self.is_receiving:
@@ -65,7 +69,7 @@ class PDFServer:
                     text = self.extract_text_from_pdf()
                     self.send_text_to_backend(self.file_name, text)
                     self.data.clear()
-                    remove("pdf.pdf")
+                    os.rename("pdf.pdf", "pdfs/" + self.generate_alpha_numeric_string(16) + ".pdf")
                     continue
 
                 if message.startswith("text:end"):
