@@ -2,11 +2,12 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 from mediapipe.framework.formats import landmark_pb2
-from voice_recorder import VoiceRecorder
-
+from voice_recorder import VoiceRecorder, VoicePlayer
 from collections import deque
+from mac_alerts import alerts
 import cv2
 import time
+import threading
 
 class GestureRecogniser:
     def __init__(self):
@@ -77,7 +78,7 @@ class VideoCaptureHandler:
         self.gesture_recogniser = GestureRecogniser()
         self.hand_landmarker = HandLandmarkRecogniser()
         self.last_open_palm_frame = -1
-        self.gesture_threshold = 0.3
+        self.gesture_threshold = 0.5
         self.frame_number = 0
         self.capture_frame_threshold = 150
         self.flash_card_mode = False
@@ -86,6 +87,7 @@ class VideoCaptureHandler:
         self.recording_mode = False
         self.no_recording_gesture_detected_counter = 0
         self.voice_recorder = VoiceRecorder()
+        self.voice_player = VoicePlayer()
 
     def track_pinkie_tip(self, finger_tip_landmarks):
         """Track the pinkie tip and return the direction."""
@@ -124,8 +126,12 @@ class VideoCaptureHandler:
         if self.recording_mode:
             return
         print("Starting recording")
+        audio_thread = threading.Thread(target=alerts.play_notication)
+        audio_thread.start()
         self.recording_mode = True
         self.voice_recorder.start_recording()
+        
+
         
         
     def stop_query(self):
@@ -134,8 +140,11 @@ class VideoCaptureHandler:
             return
         print("Stopping recording")
         self.recording_mode = False
+        audio_thread = threading.Thread(target=alerts.play_success())
+        audio_thread.start()
         query_text = self.voice_recorder.stop_recording()
         print(query_text)
+        self.voice_player.read_out_text(query_text)
 
 
     def do_flip_flashcard(self):
@@ -147,7 +156,7 @@ class VideoCaptureHandler:
             self.start_query()
         else:
             self.no_recording_gesture_detected_counter += 1
-            if self.no_recording_gesture_detected_counter >= 1:
+            if self.no_recording_gesture_detected_counter >= 2:
                 self.stop_query()
                 self.no_recording_gesture_detected_counter = 0
 
@@ -174,7 +183,7 @@ class VideoCaptureHandler:
                     #self.process_swipe_gesture(gesture.category_name)
             else:
                 self.no_recording_gesture_detected_counter += 1
-                if self.no_recording_gesture_detected_counter >= 1:
+                if self.no_recording_gesture_detected_counter >= 2:
                     self.stop_query()
                     self.no_recording_gesture_detected_counter = 0
             
