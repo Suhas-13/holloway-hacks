@@ -2,6 +2,7 @@ import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
 from mediapipe.framework.formats import landmark_pb2
+from voice_recorder import VoiceRecorder
 
 from collections import deque
 import cv2
@@ -79,9 +80,12 @@ class VideoCaptureHandler:
         self.gesture_threshold = 0.3
         self.frame_number = 0
         self.capture_frame_threshold = 150
-        self.flash_card_mode = True
+        self.flash_card_mode = False
         self.pinkie_tip_history = deque(maxlen=25)
         self.pinkie_not_detected_counter = 0
+        self.recording_mode = False
+        self.no_recording_gesture_detected_counter = 0
+        self.voice_recorder = VoiceRecorder()
 
     def track_pinkie_tip(self, finger_tip_landmarks):
         """Track the pinkie tip and return the direction."""
@@ -115,9 +119,24 @@ class VideoCaptureHandler:
                 self.do_save_webpage()
                 self.last_open_palm_frame = -1
 
-    def do_query(self):
-        """Functionality to query the webpage."""
-        print("Querying webpage")
+    def start_query(self):
+        """Functionality to query the personal brain."""
+        if self.recording_mode:
+            return
+        print("Starting recording")
+        self.recording_mode = True
+        self.voice_recorder.start_recording()
+        
+        
+    def stop_query(self):
+        """Functionality to stop querying the brain."""
+        if not self.recording_mode:
+            return
+        print("Stopping recording")
+        self.recording_mode = False
+        query_text = self.voice_recorder.stop_recording()
+        print(query_text)
+
 
     def do_flip_flashcard(self):
         """Functionality to flip the flashcard."""
@@ -125,7 +144,12 @@ class VideoCaptureHandler:
 
     def process_speak_gesture(self, gesture):
         if gesture == SPEAK_GESTURE:
-            self.do_query()
+            self.start_query()
+        else:
+            self.no_recording_gesture_detected_counter += 1
+            if self.no_recording_gesture_detected_counter >= 1:
+                self.stop_query()
+                self.no_recording_gesture_detected_counter = 0
 
     def process_flip_gesture(self, gesture):
         if gesture == FLIP_GESTURE:
@@ -146,7 +170,13 @@ class VideoCaptureHandler:
                     self.process_capture_gesture(gesture.category_name)
                     self.process_speak_gesture(gesture.category_name)
                     self.process_flip_gesture(gesture.category_name)
+                    self.no_recording_gesture_detected_counter = 0
                     #self.process_swipe_gesture(gesture.category_name)
+            else:
+                self.no_recording_gesture_detected_counter += 1
+                if self.no_recording_gesture_detected_counter >= 1:
+                    self.stop_query()
+                    self.no_recording_gesture_detected_counter = 0
             
             if self.flash_card_mode:
                 hand_landmarks = self.hand_landmarker.process_image(rgb_image)
@@ -154,8 +184,6 @@ class VideoCaptureHandler:
                 if hand_landmarks:
                     finger_tip_landmarks = self.hand_landmarker.get_finger_tip_landmarks(hand_landmarks)
                 direction = self.track_pinkie_tip(finger_tip_landmarks)
-                if direction:
-                    print(direction)
 
             self.frame_number += 1
 

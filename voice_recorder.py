@@ -13,16 +13,6 @@ class VoiceRecorder:
         self.audio_format = pyaudio.paInt16
         self.channels = 1
 
-        # Suppress ALSA warnings (https://stackoverflow.com/a/13453192)
-        ERROR_HANDLER_FUNC = CFUNCTYPE(None, c_char_p, c_int, c_char_p, c_int, c_char_p)
-
-        def py_error_handler(filename, line, function, err, fmt):
-            return
-
-        c_error_handler = ERROR_HANDLER_FUNC(py_error_handler)
-        asound = cdll.LoadLibrary("libasound.so")
-        asound.snd_lib_error_set_handler(c_error_handler)
-
         # Initialize PyAudio
         self.audio = pyaudio.PyAudio()
 
@@ -57,7 +47,6 @@ class VoiceRecorder:
         # Stop and close the audio stream
         self.stream.stop_stream()
         self.stream.close()
-        self.audio.terminate()
 
         # Close the wave file
         self.wav_file.close()
