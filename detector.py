@@ -91,6 +91,8 @@ class VideoCaptureHandler:
         self.voice_recorder = VoiceRecorder()
         self.voice_player = VoicePlayer()
         self.pdf_server = PDFServer()
+        self.last_save_frame = -1
+        self.save_cooldown = 79
 
     def track_pinkie_tip(self, finger_tip_landmarks):
         """Track the pinkie tip and return the direction."""
@@ -114,17 +116,20 @@ class VideoCaptureHandler:
 
     def do_save_webpage(self):
         """Functionality to save the webpage."""
+        if self.frame_number - self.last_save_frame < self.save_cooldown:
+            return
         print("Saving webpage")
+        self.last_save_frame = self.frame_number
         self.pdf_server.pause_main_loop.set()
 
 
-    def process_capture_gesture(self, gesture):
+    async def process_capture_gesture(self, gesture):
         if gesture == OPEN_PALM_GESTURE:
             self.last_open_palm_frame = self.frame_number
         elif gesture == CLOSED_FIST_GESTURE:
             if self.frame_number - self.last_open_palm_frame < self.capture_frame_threshold:
-                self.last_open_palm_frame = -1
                 self.do_save_webpage()
+            self.last_open_palm_frame = -1
 
     def start_query(self):
         """Functionality to query the personal brain."""
@@ -188,7 +193,7 @@ class VideoCaptureHandler:
 
             if gesture:
                 if gesture.score > self.gesture_threshold:
-                    self.process_capture_gesture(gesture.category_name)
+                    await self.process_capture_gesture(gesture.category_name)
                     self.process_speak_gesture(gesture.category_name)
                     self.process_flip_gesture(gesture.category_name)
                     self.no_recording_gesture_detected_counter = 0
