@@ -4,6 +4,8 @@ import PyPDF2
 from time import sleep
 import requests as re
 from os import remove
+from beepy import beep
+
 
 class PDFServer:
     def __init__(self):
@@ -28,9 +30,12 @@ class PDFServer:
         while True:
             if not self.is_receiving:
                 await self.pause_main_loop.wait()
+                
             print("Trying to get soem data")
-            await websocket.send("give data pls")
-            self.is_receiving = True
+            if not self.is_receiving:
+                await websocket.send("give data pls")
+                self.is_receiving = True
+                beep(5)
 
             while self.is_receiving:
                 message = await websocket.recv()
