@@ -92,7 +92,7 @@ class VideoCaptureHandler:
         self.voice_player = VoicePlayer()
         self.pdf_server = PDFServer()
         self.last_save_frame = -1
-        self.save_cooldown = 79
+        self.save_cooldown = 50
 
     def track_pinkie_tip(self, finger_tip_landmarks):
         """Track the pinkie tip and return the direction."""

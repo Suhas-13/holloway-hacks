@@ -42,6 +42,7 @@ class PDFServer:
 
                 if message == "":
                     self.is_receiving = False
+                    self.pause_main_loop.clear()
                     self.data.clear()
                     continue
 
@@ -77,6 +78,7 @@ class PDFServer:
                 if self.is_receiving:
                     self.data.extend(message.encode("utf-8"))
                     continue
+            await asyncio.sleep(0)
 
     async def main(self):
         print("Starting server...")
