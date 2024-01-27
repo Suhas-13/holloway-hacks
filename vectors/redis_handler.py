@@ -12,9 +12,6 @@ from openai import OpenAI
 
 load_dotenv()
 INDEX_NAME = "dev"
-openai_client = OpenAI(
-    api_key=os.getenv('OPENAI_KEY'),
-)
 
 
 def get_embeddings(model, data):
@@ -80,16 +77,6 @@ def get_data_json(filename, input):
     ]
 
 
-# def get_answer_from_gpt(question, context):
-#     response = openai.Completion.create(
-#       engine="davinci",
-#       prompt=f"Context: {context}\n\nQuestion: {question}\nAnswer:",
-#       max_tokens=50
-#     )
-
-#     return response.choices[0].text.strip()
-
-
 # might have a tiny deadlock risk but it's calm
 def vector_search_and_gpt(query, openai_client, redis_client, embedder, index_name):
     search_results = vector_search(redis_client, embedder, index_name, query)
@@ -138,46 +125,44 @@ def split_and_format_text(filename, text, min_length=400, max_length=1000):
     return formatted_data
 
 
-
-def main(upload=False, search=False, ask=False):
-    # Sample text data
-    # data = [
-    #     {"id": "doc1", "text": "Test123"},
-    #     # {"id": "doc2", "text": "Lorem ipsum dolor sit amet, consectetur adipiscing elit"},
-    # ]
-
-    # data = get_data_json("doc3", "Alice is friends with Bob.")
-    data = split_and_format_text("test")
-
-    client = redis.Redis(
-        host='redis-11987.c322.us-east-1-2.ec2.cloud.redislabs.com',
-        port=11987,
-        password=os.getenv('REDIS_PASSWORD'),
-        decode_responses=True
+class RedisManager:
+    def __init__(self) -> None:
+        self.client = redis.Redis(
+            host='redis-11987.c322.us-east-1-2.ec2.cloud.redislabs.com',
+            port=11987,
+            password=os.getenv('REDIS_PASSWORD'),
+            decode_responses=True
+            )
+        
+        self.openai_client = OpenAI(
+            api_key=os.getenv('OPENAI_KEY'),
         )
+        
+        self.embedder = SentenceTransformer("msmarco-distilbert-base-v4")
+    
+    def upload_string(self, filename, data):
+        data = split_and_format_text(filename, data)
+        embeddings = get_embeddings(self.embedder, data)
+        upload_data(self.client, data, embeddings)
+        delete_index(self.client, INDEX_NAME)
+        create_index(self.client, INDEX_NAME, len(embeddings[0]))
 
-    if client:
-        print("connected")
+    def search_string(self, query):
+        results = vector_search(self.client, self.embedder, INDEX_NAME, query)
+        print(results)
 
-    embedder = SentenceTransformer("msmarco-distilbert-base-v4")
-
-    embeddings = get_embeddings(embedder, data)
-
-    # kinda dirty, assumes INDEX_NAME exists
-    if upload:
-        upload_data(client, data, embeddings)
-        delete_index(client, INDEX_NAME)
-        create_index(client, INDEX_NAME, len(embeddings[0]))
-
-    if search:
-        print(vector_search(client, embedder, INDEX_NAME, "test"))
-
-    if ask:
-        query = "Who is Alice friends with?"
-
-        gpt_answer = vector_search_and_gpt(query, openai_client, client, embedder, INDEX_NAME)
+    def ask_gpt(self, query):
+        gpt_answer = vector_search_and_gpt(query, self.openai_client, self.client, self.embedder, INDEX_NAME)
         print(gpt_answer)
+        
+
+def main():
+    manager = RedisManager()
+    upload = "there are 4 words"
+    # manager.upload_string("rand", upload)
+
+    manager.ask_gpt("how many words are there?")
 
 
 if __name__ == "__main__":
-    main(upload=False, search=False, ask=False)
+    main()
