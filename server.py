@@ -58,6 +58,10 @@ class PDFServer:
             #print("Waiting for event...", flush=True)
             if not self.queue.empty():
                 message = self.queue.get()
+                if message == "restart":
+                    print("RECONNCETING WEBSOCKET")
+                    await self.websocket.reconnect()
+
                 print("Trying to send websockets", flush=True)
                 await self.websocket.send("Requesting data...")
 

@@ -165,7 +165,7 @@ class RedisManager:
         print("context:", context)
 
         response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You will be given context and questions to answer. Answer the question concisely based on the context below, and if the question can't be answered based on the context please output 'I don't know'\"\n\n"},
                 {"role": "user", "content": f"Context: {context}\n\n---\n\nQuestion: {query}\nAnswer:"}

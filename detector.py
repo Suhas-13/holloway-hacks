@@ -13,6 +13,13 @@ import asyncio
 from beepy import beep
 from server import PDFServer
 from vectors.redis_handler import RedisManager
+import os
+
+def notify(title, text):
+    os.system("""
+              osascript -e 'display notification "{}" with title "{}"'
+              """.format(text, title))
+    
 
 MINIMUM_FRAMES_SPEAK_NOT_DETECTED = 30
 class GestureRecogniser:
@@ -166,6 +173,7 @@ class VideoCaptureHandler:
         audio_thread = threading.Thread(target=alerts.play_success())
         audio_thread.start()
         self.voice_recorder.stop_recording()
+        self.queue.put("restart")
 
 
     def stop_query(self):
@@ -178,6 +186,7 @@ class VideoCaptureHandler:
         audio_thread.start()
         query_text = self.voice_recorder.stop_recording()
         print("Query: " + query_text)
+        notify("SecondBrain Heard", query_text)
         if not query_text:
             self.voice_player.read_out_text("No query detected.")
             return
