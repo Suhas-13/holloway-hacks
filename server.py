@@ -1,17 +1,21 @@
 import asyncio
-import threading
+import multiprocessing
 import websockets
 import PyPDF2
 import requests as re
 import base64
 import os
-
+from urllib.parse import quote
+from vectors.redis_handler import RedisManager
+import string
+import random
 class PDFServer:
-    def __init__(self, redis_manager):
+    def __init__(self, queue):
         self.data = []
+        self.queue = queue
         self.is_receiving_text = False
         self.file_name = ""
-        self.redis_manager = redis_manager
+        self.redis_manager = RedisManager()
         self.event = asyncio.Event()
         self.websocket = None
 
@@ -20,10 +24,13 @@ class PDFServer:
             reader = PyPDF2.PdfReader(file)
             text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
         return text
-
+    
+    def generate_alphanumeric_string(self, length):
+        return "".join(random.choices(string.ascii_letters + string.digits, k=length))
     def send_text_to_backend(self, file_name, text):
         print(f"===== {file_name} =====", flush=True)
         print("Sending text to backend...")
+        file_name = quote(file_name)
         self.redis_manager.upload_string(file_name, text)
 
     def process_pdf_message(self, url):
@@ -34,7 +41,7 @@ class PDFServer:
                 file.write(r.content)
 
             text = self.extract_text_from_pdf(filename)
-            new_file_name = base64.b64encode(url.encode("utf-8")).decode("utf-8")
+            new_file_name = self.generate_alphanumeric_string(16)
             os.rename(filename, f"pdfs/{new_file_name}.pdf")
             self.send_text_to_backend(url, text)
         except Exception as e:
@@ -43,10 +50,10 @@ class PDFServer:
     async def handler(self, websocket, path):
         self.websocket = websocket
         while True:
-            await self.event.wait()  # Wait for the signal to proceed
-            #self.event.clear()  # Reset the event after it's been triggered
-            print("Triyng to send websockets", flush=True)
-            if self.websocket:
+            #print("Waiting for event...", flush=True)
+            if not self.queue.empty():
+                message = self.queue.get()
+                print("Trying to send websockets", flush=True)
                 await self.websocket.send("Requesting data...")
 
                 # Continuously read messages until 'text:end' is received
@@ -64,7 +71,7 @@ class PDFServer:
 
                     elif message.startswith("pdf:"):
                         url = message.replace("pdf:", "")
-                        await self.process_pdf_message(url)
+                        self.process_pdf_message(url)
                         break
 
                     elif message == "text:end":
@@ -77,7 +84,9 @@ class PDFServer:
 
                     elif self.is_receiving_text:
                         self.data.append(message)
-            await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.05)
+            await asyncio.sleep(0.05)
+            
 
     async def server(self):
         async with websockets.serve(self.handler, "localhost", 8001):

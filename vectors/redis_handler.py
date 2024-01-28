@@ -151,7 +151,7 @@ class RedisManager:
         response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You will be given context and questions to answer. Answer the question concisely based on the context below, and if the question can't be answered based on the context use your own knowledge to provide your best response.\"\n\n"},
+                {"role": "system", "content": "You will be given context and questions to answer. Answer the question concisely based on the context below, and if the question can't be answered based on the context use your own knowledge to provide your best response. Never provide no answer.\"\n\n"},
                 {"role": "user", "content": f"Context: {context}\n\n---\n\nQuestion: {query}\nAnswer:"}
             ],
             temperature=0,
