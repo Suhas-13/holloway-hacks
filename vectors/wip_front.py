@@ -1,5 +1,5 @@
 from taipy.gui import Gui, Markdown
-from vectors.redis_handler import RedisManager
+from redis_handler import RedisManager
 import pandas as pd
 
 # Initialize RedisManager
