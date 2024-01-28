@@ -44,7 +44,9 @@ class PDFServer:
                 file.write(r.content)
 
             text = self.extract_text_from_pdf(filename)
-            new_file_name = self.generate_alphanumeric_string(16)
+            new_file_name = quote(title)
+            if os.path.exists(f"pdfs/{new_file_name}.pdf"):
+                os.remove(f"pdfs/{new_file_name}.pdf")
             os.rename(filename, f"pdfs/{new_file_name}.pdf")
             self.send_text_to_backend(url, title, text)
         except Exception as e:
@@ -94,8 +96,8 @@ class PDFServer:
                     elif self.is_receiving_text:
                         self.data.append(message)
                     
-                    await asyncio.sleep(0.1)
-            await asyncio.sleep(0.1)
+                    await asyncio.sleep(0)
+            await asyncio.sleep(0)
 
             
     async def handler(self, websocket, path):
@@ -107,7 +109,7 @@ class PDFServer:
                 print("Connection closed, attempting to reconnect...")
                 # Logic to initiate a reconnection
                 # This could involve waiting for a few seconds and then retrying the connection
-                await asyncio.sleep(5)  # Wait for 5 seconds before retrying
+                await asyncio.sleep(2)  # Wait for 5 seconds before retrying
                 # You might also need to handle the reconnection process here
             
             
