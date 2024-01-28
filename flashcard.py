@@ -1,9 +1,14 @@
 import redis
 import json
-from web import Flashcard
+
 
 # Connect to Redis
-client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+client = redis.Redis(
+        host='redis-11987.c322.us-east-1-2.ec2.cloud.redislabs.com',
+        port=11987,
+        password='ADD_URS',
+        decode_responses=True
+        )
 
 # Sample JSON data
 data = {
@@ -39,8 +44,6 @@ data = {
   }
 }
 
-
-
 def add_flashcards(topic, details):
     json_data = json.dumps(details)
 
@@ -53,6 +56,23 @@ def display_flashcards(topic):
     data = json.loads(json_data)
 
     return data
+
+
+def all_flashcards():
+    all_data = []
+
+    all_keys = client.keys('*')
+
+    for key in all_keys:
+        if not key.startswith("Topic"):
+            continue
+        value = client.get(key)
+        if value:
+            json_data = json.loads(value)
+            all_data.append([list(json_data.keys())[0], list(json_data.values())[0]])
+
+    print(all_data)
+    return all_data
 
 for topic, data in data.items():
     add_flashcards(topic, data)

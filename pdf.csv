@@ -1,5 +1,5 @@
-name,date,number_of_words,type
-mohamed,2014,500,text
-bob,2015,290,videos
-trudy,2080,500,text
-alice,helloworld,500,text
+url,date,number_of_words
+mohamed,2014,500
+bob,2015,290
+trudy,2080,500
+alice,helloworld,500

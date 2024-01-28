@@ -3,12 +3,9 @@ from taipy.gui import notify, State
 import pandas as pd
 import numpy as np
 import flashcard as fc
+import openai
 
 
-context = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.\n\nHuman: Hello, who are you?\nAI: I am an AI created by OpenAI. How can I help you today? "
-conversation = {
-    "Conversation": ["Who are you?", "Hi! I am GPT-3. How can I help you today?"]
-}
 
 current_user_message = ""
 path = ""
@@ -36,25 +33,19 @@ class Flashcard:
         self.answer = answer
         self.show_answer = False
 
-# Create a list of flashcards
-flashcards = [
-    Flashcard("What is the capital of France?", "Paris"),
-    Flashcard("What is the chemical formula for water?", "H2O"),
-    Flashcard("Who wrote 'To Kill a Mockingbird'?", "Harper Lee"),
-]
+## This needs to be updated regurlrly
+all_flashcards = fc.all_flashcards()
+flashcards = [Flashcard(question=i[0], answer= i[1]) for i in all_flashcards]
+current_card = 0
+max_card = len(flashcards)
 
+dataset = pd.read_csv("pdf.csv")
+context = ""
+current_user_message = ""
+conversation = {"Conversation": ["Converse with your Documents"]}
 
 current_card = 0
 answer = ""
-
-# Define actions
-def show_answer(state: State):
-    state.answer = state.flashcards[state.current_card].answer
-
-def next_card(state: State):
-    state.answer = ""
-    state.current_card = (state.current_card + 1) % len(state.flashcards)
-    state.flashcards[state.current_card].show_answer = False
 
 
 show_pane = False
@@ -74,7 +65,7 @@ visibility = False
 
 flashcard_page = """
 
-<|layout|
+<|layout|s
 
 <|card flash_question |  
 <|{flashcards[current_card].question} |>
@@ -102,45 +93,41 @@ statistics_page = """
 
 """
 
-def send_message(state: State) -> None:
-    """
-    Send the user's message to the API and update the conversation.
+def style_conv(state: State, idx: int, row: int) -> str:
+        if idx is None:
+            return None
+        elif idx % 2 == 0:
+            return "user_message"
+        else:
+            return "gpt_message"
 
-    Args:
-        - state: The current state.
-    """
+def show_answer(state: State):
+        state.answer = state.flashcards[state.current_card].answer
+
+def next_card(state: State):
+    state.answer = ""
+    state.current_card = (state.current_card + 1) % len(state.flashcards)
+    state.flashcards[state.current_card].show_answer = False
+
+def send_message(state: State):
     # Add the user's message to the context
-    state.context += f"Human: \n {state.current_user_message}\n\n AI:"
-    # Send the user's message to the API and get the response
-    print(state.context)
-    # Add the response to the context for future messages
-    # state.context += answer
+    state.context = f"\n {state.current_user_message}\n"
+    # Replace with your function
+    answer = ask_openai(state.current_user_message)
+
+    state.context += answer
     # Update the conversation
     conv = state.conversation._dict.copy()
-    # conv["Conversation"] += [state.current_user_message, answer]
+    conv["Conversation"] += [state.current_user_message, answer]
     state.conversation = conv
     # Clear the input field
     state.current_user_message = ""
 
-def analyze_file(state):
-    print(state.path)
-    state.dataframe2 = dataframe2
-    state.treatment = 0
-    with open(state.path,"r", encoding="utf-8") as f:
-        data = f.read()
-        # split lines and eliminates duplicates
-        file_list = list(dict.fromkeys(data.replace("\n", " ").split(".")[:-1]))
-    
-    notify(state, 'info', f'The text is: {state.path}')
-    state.text = "Button Pressed"
 
-    state.path = None
-
-# One root page for common content
-# The two pages that were created
 pages = {"/":"<|toggle|theme|>\n<center>\n<|navbar|>\n</center>",
          "Chat":chat,
          "FlashCards":flashcard_page,
          "Statistics":statistics_page}
 
-Gui(pages=pages).run()
+if __name__ == "__main__":
+    Gui(pages=pages, css_file="main.css").run()
