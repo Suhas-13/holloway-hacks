@@ -7,18 +7,18 @@ function connectWebSocket() {
 
     webSocket = new WebSocket("ws://localhost:8001");
 
-    webSocket.onopen = function(event) {
+    webSocket.onopen = function (event) {
         console.log("WebSocket open");
     };
 
-    webSocket.onclose = function(event) {
+    webSocket.onclose = function (event) {
         console.log("WebSocket closed");
         running = false;
         webSocket = null;
         setTimeout(connectWebSocket, 10000); // Reconnect after 10 seconds
     };
 
-    webSocket.onerror = function(event) {
+    webSocket.onerror = function (event) {
         console.error("WebSocket error", event);
         if (webSocket) {
             running = false;
@@ -26,7 +26,7 @@ function connectWebSocket() {
         }
     };
 
-    webSocket.onmessage = function(event) {
+    webSocket.onmessage = function (event) {
         console.log("Data requested");
         processCurrentTab();
     };
@@ -36,10 +36,18 @@ function chunkString(str, length) {
     return str.match(new RegExp(".{1," + length + "}", "g"));
 }
 
+function truncateString(str, length) {
+    if (str.length <= length) {
+        return str;
+    }
+
+    return str.slice(0, length - 3) + "...";
+}
+
 function sendChunkedText(text) {
     const chunks = chunkString(text, 500);
     if (chunks) {
-        chunks.forEach(function(chunk) {
+        chunks.forEach(function (chunk) {
             webSocket.send(chunk);
         });
     }
@@ -47,7 +55,7 @@ function sendChunkedText(text) {
 }
 
 function processCurrentTab() {
-    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         if (tabs.length === 0) {
             return;
         }
@@ -60,23 +68,30 @@ function processCurrentTab() {
 
         chrome.tabs.executeScript(
             tab.id,
-            { code: 'document.body.innerText || document.body.textContent' },
-            function(results) {
-                console.log("RESULTS ARE ", results)
-                if (chrome.runtime.lastError || !results || results.length === 0 || !results[0]) {
-                    console.error("Error or no content:", chrome.runtime.lastError);
-                    webSocket.send("pdf:" + tab.url);
+            { code: "document.body.innerText || document.body.textContent" },
+            function (results) {
+                console.log("RESULTS ARE ", results);
+                if (
+                    chrome.runtime.lastError ||
+                    !results ||
+                    results.length === 0 ||
+                    !results[0]
+                ) {
+                    console.error(
+                        "Error or no content:",
+                        chrome.runtime.lastError,
+                    );
+                    webSocket.send("pdf:" + truncateString(tab.title, 100) + ":" + tab.url);
                 } else {
                     const maxTextLength = 5000; // Set maximum text length
                     const text = results[0].slice(0, maxTextLength); // Truncate text to 5000 characters
-                    webSocket.send("text:start:" + tab.url);
+                    webSocket.send("text:start:" + truncateString(tab.title, 100) + ":" + tab.url);
                     sendChunkedText(text);
                 }
-            }
+            },
         );
     });
 }
-
 
 connectWebSocket();
 
