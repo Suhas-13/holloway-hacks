@@ -1,6 +1,7 @@
 from taipy.gui import Gui, Markdown
 from redis_handler import RedisManager
 import pandas as pd
+import os
 
 # Initialize RedisManager
 manager = RedisManager()
@@ -13,7 +14,9 @@ manager = RedisManager()
 # """
 nav_bar = ""
 
-page = nav_bar + """
+page = (
+    nav_bar
+    + """
 <|layout|type=flexbox|orientation=horizontal|>
     <h1 class="head1">SecondBrain Q&A</h1>
         <center>
@@ -26,17 +29,13 @@ page = nav_bar + """
 <|SHOW FILES|expandable|
 <section id="file-cont">
 """
+)
 
-files = ["http://www.example.com/",
-    "https://www.example.com/belief.php",
-    "http://example.com/?bird=airport&birds=adjustment",
-    "http://www.example.com/beginner.php",
-    "https://example.net/",
-    "http://www.example.com/"
-         ]
+files = os.listdir("pdfs")
 
 for file in files:
-    page += f"<a class='file' href='{file}'>{file}</a>"
+    path = os.path.realpath("pdfs/" + file)
+    page += f"<a class='file' href='file://{path}'>{file}</a>"
 
 
 page += """
@@ -47,6 +46,7 @@ page += """
 # Initial state
 text = "Hello! How can I assist you today?"
 user_input = ""
+
 
 # Action handler for the button
 def on_button_action(state):
@@ -59,6 +59,7 @@ def on_button_action(state):
         state.text = f"Error: {str(e)}"
     finally:
         state.user_input = ""
+
 
 # Linking the CSS file
 css_file = "styles.css"
