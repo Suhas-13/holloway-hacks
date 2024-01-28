@@ -8,6 +8,7 @@ import os
 from urllib.parse import quote
 from vectors.redis_handler import RedisManager
 import string
+from beepy import beep
 import random
 class PDFServer:
     def __init__(self, queue):
@@ -49,7 +50,7 @@ class PDFServer:
         except Exception as e:
             print(f"Error processing PDF: {e}")
 
-    async def handler(self, websocket, path):
+    async def handle_connection(self, websocket):
         self.websocket = websocket
         while True:
             #print("Waiting for event...", flush=True)
@@ -78,6 +79,7 @@ class PDFServer:
                         title = message.split(":")[0]
                         url = message[len(title) + 1:]
                         self.process_pdf_message(url, title)
+                        beep(0)
                         break
 
                     elif message == "text:end":
@@ -86,12 +88,28 @@ class PDFServer:
                             self.send_text_to_backend(self.file_name, self.title, complete_text)
                             self.data.clear()
                             self.is_receiving_text = False
+                            beep(0)
                         break
 
                     elif self.is_receiving_text:
                         self.data.append(message)
-                    await asyncio.sleep(0.05)
-            await asyncio.sleep(0.05)
+                    
+                    await asyncio.sleep(0.1)
+            await asyncio.sleep(0.1)
+
+            
+    async def handler(self, websocket, path):
+        while True:
+            try:
+                await self.handle_connection(websocket)
+            except Exception as e:
+                print(e)
+                print("Connection closed, attempting to reconnect...")
+                # Logic to initiate a reconnection
+                # This could involve waiting for a few seconds and then retrying the connection
+                await asyncio.sleep(5)  # Wait for 5 seconds before retrying
+                # You might also need to handle the reconnection process here
+            
             
 
     async def server(self):

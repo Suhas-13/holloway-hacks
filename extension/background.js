@@ -15,7 +15,7 @@ function connectWebSocket() {
         console.log("WebSocket closed");
         running = false;
         webSocket = null;
-        setTimeout(connectWebSocket, 10000); // Reconnect after 10 seconds
+        setTimeout(connectWebSocket, 1000); // Reconnect after 10 seconds
     };
 
     webSocket.onerror = function (event) {

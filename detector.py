@@ -14,7 +14,7 @@ from beepy import beep
 from server import PDFServer
 from vectors.redis_handler import RedisManager
 
-MINIMUM_FRAMES_SPEAK_NOT_DETECTED = 3
+MINIMUM_FRAMES_SPEAK_NOT_DETECTED = 30
 class GestureRecogniser:
     def __init__(self):
         base_options = mp_python.BaseOptions(model_asset_path='gesture_recognizer.task')
