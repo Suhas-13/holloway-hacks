@@ -14,6 +14,7 @@ from beepy import beep
 from server import PDFServer
 from vectors.redis_handler import RedisManager
 
+MINIMUM_FRAMES_SPEAK_NOT_DETECTED = 3
 class GestureRecogniser:
     def __init__(self):
         base_options = mp_python.BaseOptions(model_asset_path='gesture_recognizer.task')
@@ -75,7 +76,7 @@ class HandLandmarkRecogniser:
 OPEN_PALM_GESTURE = "Open_Palm"
 CLOSED_FIST_GESTURE = "Closed_Fist"
 SPEAK_GESTURE = "Pointing_Up"
-FLIP_GESTURE = "Victory"
+SCRAP_GESTURE = "Victory"
 
 class VideoCaptureHandler:
     def __init__(self, queue):
@@ -131,6 +132,8 @@ class VideoCaptureHandler:
 
 
     async def process_capture_gesture(self, gesture):
+        if self.recording_mode:
+            return
         if gesture == OPEN_PALM_GESTURE:
             self.last_open_palm_frame = self.frame_number
         elif gesture == CLOSED_FIST_GESTURE:
@@ -154,6 +157,17 @@ class VideoCaptureHandler:
         manager = RedisManager()
         return manager.ask_gpt(query_text)
         
+    def scrap_query(self):
+        """Functionality to scrap the recording."""
+        if not self.recording_mode:
+            return
+        print("Scrapping recording")
+        self.recording_mode = False
+        audio_thread = threading.Thread(target=alerts.play_success())
+        audio_thread.start()
+        self.voice_recorder.stop_recording()
+
+
     def stop_query(self):
         """Functionality to stop querying the brain."""
         if not self.recording_mode:
@@ -164,6 +178,9 @@ class VideoCaptureHandler:
         audio_thread.start()
         query_text = self.voice_recorder.stop_recording()
         print("Query: " + query_text)
+        if not query_text:
+            self.voice_player.read_out_text("No query detected.")
+            return
         response = self.make_query(query_text)
         self.voice_player.read_out_text(response)
 
@@ -172,18 +189,19 @@ class VideoCaptureHandler:
         """Functionality to flip the flashcard."""
         print("Flipping flashcard")
 
-    def process_speak_gesture(self, gesture):
+    async def process_speak_gesture(self, gesture):
         if gesture == SPEAK_GESTURE:
             self.start_query()
         else:
             self.no_recording_gesture_detected_counter += 1
-            if self.no_recording_gesture_detected_counter >= 2:
+            if self.no_recording_gesture_detected_counter >= MINIMUM_FRAMES_SPEAK_NOT_DETECTED:
                 self.stop_query()
                 self.no_recording_gesture_detected_counter = 0
 
-    def process_flip_gesture(self, gesture):
-        if gesture == FLIP_GESTURE:
-            self.do_flip_flashcard()
+
+    def process_scrap_recording_gesture(self, gesture):
+        if gesture == SCRAP_GESTURE:
+            self.scrap_query()
     
     async def main(self):
         await self.run()
@@ -202,13 +220,13 @@ class VideoCaptureHandler:
             if gesture:
                 if gesture.score > self.gesture_threshold:
                     await self.process_capture_gesture(gesture.category_name)
-                    self.process_speak_gesture(gesture.category_name)
-                    self.process_flip_gesture(gesture.category_name)
+                    await self.process_speak_gesture(gesture.category_name)
+                    self.process_scrap_recording_gesture(gesture.category_name)
                     self.no_recording_gesture_detected_counter = 0
                     #self.process_swipe_gesture(gesture.category_name)
             else:
                 self.no_recording_gesture_detected_counter += 1
-                if self.no_recording_gesture_detected_counter >= 2:
+                if self.no_recording_gesture_detected_counter >= MINIMUM_FRAMES_SPEAK_NOT_DETECTED:
                     self.stop_query()
                     self.no_recording_gesture_detected_counter = 0
             
