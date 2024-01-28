@@ -15,6 +15,7 @@ class PDFServer:
         self.queue = queue
         self.is_receiving_text = False
         self.file_name = ""
+        self.title = ""
         self.redis_manager = RedisManager()
         self.event = asyncio.Event()
         self.websocket = None
@@ -27,13 +28,14 @@ class PDFServer:
     
     def generate_alphanumeric_string(self, length):
         return "".join(random.choices(string.ascii_letters + string.digits, k=length))
-    def send_text_to_backend(self, file_name, text):
+    def send_text_to_backend(self, file_name, title, text):
         print(f"===== {file_name} =====", flush=True)
         print("Sending text to backend...")
         file_name = quote(file_name)
-        self.redis_manager.upload_string(file_name, text)
+        title = quote(title)
+        self.redis_manager.upload_string(file_name, title, text)
 
-    def process_pdf_message(self, url):
+    def process_pdf_message(self, url, title):
         try:
             r = re.get(url, verify=False)
             filename = "pdf.pdf"
@@ -43,7 +45,7 @@ class PDFServer:
             text = self.extract_text_from_pdf(filename)
             new_file_name = self.generate_alphanumeric_string(16)
             os.rename(filename, f"pdfs/{new_file_name}.pdf")
-            self.send_text_to_backend(url, text)
+            self.send_text_to_backend(url, title, text)
         except Exception as e:
             print(f"Error processing PDF: {e}")
 
@@ -66,18 +68,22 @@ class PDFServer:
 
                     if message.startswith("text:start:"):
                         self.is_receiving_text = True
-                        self.file_name = message.replace("text:start:", "")
+                        message = message.replace("text:start:", "")
+                        self.title = message.split(":")[0]
+                        self.file_name = message[len(self.title) + 1:]
                         self.data.clear()
 
                     elif message.startswith("pdf:"):
-                        url = message.replace("pdf:", "")
-                        self.process_pdf_message(url)
+                        message = message[4:]
+                        title = message.split(":")[0]
+                        url = message[len(title) + 1:]
+                        self.process_pdf_message(url, title)
                         break
 
                     elif message == "text:end":
                         if self.is_receiving_text:
                             complete_text = "".join(self.data)
-                            self.send_text_to_backend(self.file_name, complete_text)
+                            self.send_text_to_backend(self.file_name, self.title, complete_text)
                             self.data.clear()
                             self.is_receiving_text = False
                         break
