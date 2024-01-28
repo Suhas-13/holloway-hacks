@@ -1,0 +1,38 @@
+/* Example CSS */
+body {
+    /* font-family: Arial, sans-serif; */
+    background-color: #171719;
+}
+
+input, button {
+    font-family: 'Courier New', Courier, monospace;
+    /* border: 1px solid #ccc; */
+    /* border-radius: 5px; */
+}
+
+.head1 {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 36px;
+    color: #ffffff;
+    text-align: center;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.files {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 23px;
+    margin-top: 40px;
+    margin-left: 12px;
+}
+
+.taipy-text {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 28px; /* Adjust the size as needed */
+    color: #ffffff;
+    /* border: 1px solid #ccc; */
+    /* margin: 10px;
+    padding: 10px; */
+    /* border-radius: 5px; */
+    white-space: pre-wrap; /* To ensure proper formatting of multiline text */
+}
