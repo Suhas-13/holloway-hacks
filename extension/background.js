@@ -21,6 +21,7 @@ function connectWebSocket() {
     webSocket.onerror = function(event) {
         console.error("WebSocket error", event);
         if (webSocket) {
+            running = false;
             webSocket.close();
         }
     };
@@ -84,5 +85,5 @@ connectWebSocket();
     if (!running) {
         connectWebSocket();
     }
-    setTimeout(checkConnection, 1000); // Check connection every 10 seconds
+    setTimeout(checkConnection, 1000); // Check connection every 1 seconds
 })();
