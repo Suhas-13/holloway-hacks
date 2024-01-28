@@ -34,8 +34,7 @@ page = (
 files = os.listdir("pdfs")
 
 for file in files:
-    path = os.path.realpath("pdfs/" + file)
-    page += f"<a class='file' href='file://{path}'>{file}</a>"
+    page += f"<a class='file' href='pdfs/{file}'>{file}</a>"
 
 
 page += """
@@ -65,4 +64,6 @@ def on_button_action(state):
 css_file = "styles.css"
 
 # Run the GUI
-Gui(page=page, css_file=css_file).run(port=3001)
+Gui(page=page, css_file=css_file, path_mapping={"pdfs": os.getcwd() + "/pdfs"}).run(
+    port=3001
+)
