@@ -6,6 +6,7 @@ from voice_recorder import VoiceRecorder, VoicePlayer
 from collections import deque
 from mac_alerts import alerts
 import cv2
+import multiprocessing
 import time
 import threading
 import asyncio
@@ -77,8 +78,9 @@ SPEAK_GESTURE = "Pointing_Up"
 FLIP_GESTURE = "Victory"
 
 class VideoCaptureHandler:
-    def __init__(self):
+    def __init__(self, queue):
         self.cap = cv2.VideoCapture(0)
+        self.queue = queue
         self.gesture_recogniser = GestureRecogniser()
         self.hand_landmarker = HandLandmarkRecogniser()
         self.last_open_palm_frame = -1
@@ -93,7 +95,6 @@ class VideoCaptureHandler:
         self.voice_recorder = VoiceRecorder()
         self.voice_player = VoicePlayer()
         self.redis_manager = RedisManager()
-        self.pdf_server = PDFServer(self.redis_manager)
         self.last_save_frame = -1
         self.save_cooldown = 50
 
@@ -124,7 +125,7 @@ class VideoCaptureHandler:
             return
         print("Saving webpage")
         beep(5)
-        self.pdf_server.event.set()
+        self.queue.put("save")
 
         self.last_save_frame = self.frame_number
 
@@ -185,11 +186,7 @@ class VideoCaptureHandler:
             self.do_flip_flashcard()
     
     async def main(self):
-        task1 = asyncio.create_task(self.run())
-        server_thread = threading.Thread(target=self.pdf_server.start_websocket_server, daemon=True)
-        server_thread.start()
-
-        await task1
+        await self.run()
 
     async def run(self):
         """Main loop for video capture and processing."""
@@ -224,10 +221,27 @@ class VideoCaptureHandler:
 
             self.frame_number += 1
 
-            await asyncio.sleep(0)
 
+def video_capture_process(queue):
+    video_capture_handler = VideoCaptureHandler(queue)
+    asyncio.run(video_capture_handler.main())
+
+def pdf_server_process(queue):
+    server = PDFServer(queue)  # Assuming None for redis_manager
+    server.start_websocket_server()
+
+    
 
 
 if __name__ == "__main__":
-    video_capture_handler = VideoCaptureHandler()
-    asyncio.run(video_capture_handler.main())
+    queue = multiprocessing.Queue()
+    video_process = multiprocessing.Process(target=video_capture_process, args=(queue,))
+    server_process = multiprocessing.Process(target=pdf_server_process, args=(queue,))
+
+    # Starting processes
+    video_process.start()
+    server_process.start()
+
+    # Waiting for processes to finish (if they ever do)
+    video_process.join()
+    server_process.join()
