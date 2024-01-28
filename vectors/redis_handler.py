@@ -94,7 +94,7 @@ class RedisManager:
         return self.openai_client.embeddings.create(input = [text], model=model).data[0].embedding
     
 
-    def upload_string(self, filename, data):
+    def upload_string(self, filename, title, data):
         data = split_and_format_text(filename, data)
         embeddings = [np.array(self.get_embedding(item["text"]), dtype=np.float32) for item in data]
         upload_data(self.client, data, embeddings)
