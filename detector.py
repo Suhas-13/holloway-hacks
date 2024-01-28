@@ -6,10 +6,13 @@ from voice_recorder import VoiceRecorder, VoicePlayer
 from collections import deque
 from mac_alerts import alerts
 import cv2
+import multiprocessing
 import time
 import threading
 import asyncio
+from beepy import beep
 from server import PDFServer
+from vectors.redis_handler import RedisManager
 
 class GestureRecogniser:
     def __init__(self):
@@ -75,8 +78,9 @@ SPEAK_GESTURE = "Pointing_Up"
 FLIP_GESTURE = "Victory"
 
 class VideoCaptureHandler:
-    def __init__(self):
+    def __init__(self, queue):
         self.cap = cv2.VideoCapture(0)
+        self.queue = queue
         self.gesture_recogniser = GestureRecogniser()
         self.hand_landmarker = HandLandmarkRecogniser()
         self.last_open_palm_frame = -1
@@ -90,7 +94,7 @@ class VideoCaptureHandler:
         self.no_recording_gesture_detected_counter = 0
         self.voice_recorder = VoiceRecorder()
         self.voice_player = VoicePlayer()
-        self.pdf_server = PDFServer()
+        self.redis_manager = RedisManager()
         self.last_save_frame = -1
         self.save_cooldown = 50
 
@@ -113,14 +117,17 @@ class VideoCaptureHandler:
         elif self.pinkie_tip_history[0].x < pinkie_tip.x:
             return "Right"
         return None
+    
 
-    def do_save_webpage(self):
+    async def do_save_webpage(self):
         """Functionality to save the webpage."""
         if self.frame_number - self.last_save_frame < self.save_cooldown:
             return
         print("Saving webpage")
+        beep(5)
+        self.queue.put("save")
+
         self.last_save_frame = self.frame_number
-        self.pdf_server.pause_main_loop.set()
 
 
     async def process_capture_gesture(self, gesture):
@@ -128,7 +135,7 @@ class VideoCaptureHandler:
             self.last_open_palm_frame = self.frame_number
         elif gesture == CLOSED_FIST_GESTURE:
             if self.frame_number - self.last_open_palm_frame < self.capture_frame_threshold:
-                self.do_save_webpage()
+                await self.do_save_webpage()
             self.last_open_palm_frame = -1
 
     def start_query(self):
@@ -143,6 +150,9 @@ class VideoCaptureHandler:
         
 
         
+    def make_query(self, query_text):
+        manager = RedisManager()
+        return manager.ask_gpt(query_text)
         
     def stop_query(self):
         """Functionality to stop querying the brain."""
@@ -153,8 +163,9 @@ class VideoCaptureHandler:
         audio_thread = threading.Thread(target=alerts.play_success())
         audio_thread.start()
         query_text = self.voice_recorder.stop_recording()
-        print(query_text)
-        self.voice_player.read_out_text(query_text)
+        print("Query: " + query_text)
+        response = self.make_query(query_text)
+        self.voice_player.read_out_text(response)
 
 
     def do_flip_flashcard(self):
@@ -175,10 +186,7 @@ class VideoCaptureHandler:
             self.do_flip_flashcard()
     
     async def main(self):
-        task1 = asyncio.create_task(self.run())
-        task2 = asyncio.create_task(self.pdf_server.main())
-
-        await asyncio.gather(task1, task2)
+        await self.run()
 
     async def run(self):
         """Main loop for video capture and processing."""
@@ -213,10 +221,27 @@ class VideoCaptureHandler:
 
             self.frame_number += 1
 
-            await asyncio.sleep(0)
 
+def video_capture_process(queue):
+    video_capture_handler = VideoCaptureHandler(queue)
+    asyncio.run(video_capture_handler.main())
+
+def pdf_server_process(queue):
+    server = PDFServer(queue)  # Assuming None for redis_manager
+    server.start_websocket_server()
+
+    
 
 
 if __name__ == "__main__":
-    video_capture_handler = VideoCaptureHandler()
-    asyncio.run(video_capture_handler.main())
+    queue = multiprocessing.Queue()
+    video_process = multiprocessing.Process(target=video_capture_process, args=(queue,))
+    server_process = multiprocessing.Process(target=pdf_server_process, args=(queue,))
+
+    # Starting processes
+    video_process.start()
+    server_process.start()
+
+    # Waiting for processes to finish (if they ever do)
+    video_process.join()
+    server_process.join()
