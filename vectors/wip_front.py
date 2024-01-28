@@ -45,7 +45,7 @@ page += """
 """
 
 # Initial state
-text = ""
+text = "Hello! How can I assist you today?"
 user_input = ""
 
 # Action handler for the button
