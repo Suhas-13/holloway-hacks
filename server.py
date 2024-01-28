@@ -89,8 +89,13 @@ class PDFServer:
             
 
     async def server(self):
-        async with websockets.serve(self.handler, "localhost", 8001):
-            await asyncio.Future()  # Run indefinitely
+        while True:
+            try:
+                async with websockets.serve(self.handler, "localhost", 8001):
+                    await asyncio.Future()  # Run indefinitely
+            except Exception as e:
+                print(f"Server error: {e}. Restarting...")
+                continue
 
     def start_websocket_server(self):
         asyncio.run(self.server())
