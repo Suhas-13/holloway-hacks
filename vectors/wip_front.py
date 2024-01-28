@@ -13,12 +13,6 @@ manager = RedisManager()
 # """
 nav_bar = ""
 
-table_df = pd.DataFrame({
-    "File Name": ["first", "second", "third"],
-    "Content": ["lorem ipsum", "  File 'src/gevent/_abstract_linkable.py', line 442, in gevent._gevent_c_abstract_linkable.AbstractLinkable._AbstractLinkable__wait_to_be_notified File 'src/gevent/_abstract_linkable.py', line 442, in gevent._gevent_c_abstract_linkable.AbstractLinkable._AbstractLinkable__wait_to_be_notified File 'src/gevent/_abstract_linkable.py', line 442, in gevent._gevent_c_abstract_linkable.AbstractLinkable._AbstractLinkable__wait_to_be_notified", "some text"],
-
-})
-
 page = nav_bar + """
 <|layout|type=flexbox|orientation=horizontal|>
     <h1 class="head1">SecondBrain Q&A</h1>
@@ -30,7 +24,23 @@ page = nav_bar + """
 
 </>
 <|SHOW FILES|expandable|
-<|{table_df}|table|>
+<section id="file-cont">
+"""
+
+files = ["http://www.example.com/",
+    "https://www.example.com/belief.php",
+    "http://example.com/?bird=airport&birds=adjustment",
+    "http://www.example.com/beginner.php",
+    "https://example.net/",
+    "http://www.example.com/"
+         ]
+
+for file in files:
+    page += f"<a class='file' href='{file}'>{file}</a>"
+
+
+page += """
+</section>
 |>
 """
 

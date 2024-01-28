@@ -36,3 +36,17 @@ input, button {
     /* border-radius: 5px; */
     white-space: pre-wrap; /* To ensure proper formatting of multiline text */
 }
+
+#files-cont {
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+}
+
+.file {
+    border: 1px solid #f25c48;
+    padding: 5px;
+    margin: 12px;
+    color: #f25c48;
+    display: inline-block;
+}
