@@ -33,7 +33,7 @@ class VoicePlayer:
         if system_os == "Windows":
             os.system("start output.mp3")  # Command for Windows
         elif system_os == "Darwin":
-            os.system("afplay --rate 1.2 output.mp3")  # Command for macOS
+            os.system("afplay --rate 1.3 output.mp3")  # Command for macOS
         else:
             os.system("mpg123 output.mp3")  # Command for Linux
 
