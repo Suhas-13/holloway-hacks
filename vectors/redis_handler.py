@@ -179,7 +179,7 @@ class RedisManager:
         )
         print("Answer:",response.choices[0].message.content.strip())
         if "i don't know" in response.choices[0].message.content.strip().lower():
-            return "I wasn't able to find an answer fronm your documents but based on a search " + self.gpt_response_based_on_knowledge(openai_client, query, context)
+            return "I wasn't able to find an answer from your documents but based on a search " + self.gpt_response_based_on_knowledge(openai_client, query, context)
         return response.choices[0].message.content.strip()
             
 
